@@ -1,0 +1,45 @@
+# Flutter & Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+*.iml
+.idea/
+.vscode/
+
+# Android
+android/.gradle
+android/local.properties
+android/key.properties
+android/app/*.keystore
+android/app/*.jks
+**/android/.gradle/
+**/build/
+
+# iOS / macOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/app.framework
+ios/Flutter/ephemeral/
+.DS_Store
+
+# Python & Backend
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.env
+venv/
+env/
+.venv/
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+
+# General
+Thumbs.db

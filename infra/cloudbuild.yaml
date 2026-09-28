@@ -1,0 +1,75 @@
+steps:
+  # 1. Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-image'
+    args:
+      - 'build'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/faar-pos-api:$COMMIT_SHA'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/faar-pos-api:latest'
+      - '-f'
+      - 'backend/Dockerfile'
+      - 'backend'
+
+  # 2. Push the image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-image'
+    args:
+      - 'push'
+      - '--all-tags'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/faar-pos-api'
+    waitFor: ['build-image']
+
+  # 3. Run database migrations
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'run-migrations'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'jobs'
+      - 'create'
+      - 'faar-pos-migrate-$SHORT_SHA'
+      - '--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/faar-pos-api:$COMMIT_SHA'
+      - '--command=alembic'
+      - '--args=upgrade,head'
+      - '--region=${_REGION}'
+      - '--set-secrets=DATABASE_URL=faar-pos-database-url:latest'
+      - '--vpc-connector=faar-pos-connector'
+      - '--add-cloudsql-instances=${_DB_CONNECTION_NAME}'
+      - '--execute-now'
+      - '--wait'
+    waitFor: ['push-image']
+
+  # 4. Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-cloudrun'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'faar-pos-api'
+      - '--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/faar-pos-api:$COMMIT_SHA'
+      - '--platform=managed'
+      - '--region=${_REGION}'
+      - '--allow-unauthenticated'
+      - '--port=8080'
+      - '--min-instances=0'
+      - '--max-instances=10'
+      - '--concurrency=80'
+      - '--cpu=1'
+      - '--memory=512Mi'
+      - '--vpc-connector=faar-pos-connector'
+      - '--add-cloudsql-instances=${_DB_CONNECTION_NAME}'
+      - '--set-env-vars=PROJECT_NAME=FAAR POS,ENVIRONMENT=production'
+      - '--set-secrets=SECRET_KEY=faar-pos-secret-key:latest,DATABASE_URL=faar-pos-database-url:latest,REDIS_URL=faar-pos-redis-url:latest'
+    waitFor: ['run-migrations']
+
+substitutions:
+  _REGION: 'us-central1'
+  _ARTIFACT_REPO: 'faar-pos-images'
+  _DB_CONNECTION_NAME: ''  # Set this to your Cloud SQL connection name
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_8'

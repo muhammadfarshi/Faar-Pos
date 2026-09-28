@@ -1,0 +1,53 @@
+name: FAAR POS CI/CD Quality Gate
+
+on:
+  push:
+    branches: [ main, master, 'release/**' ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  validate_and_build:
+    name: Flutter Analyze, Test & Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17 (Required for Gradle 8+ & Android 14)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.x'
+          channel: 'stable'
+          cache: true
+
+      - name: Install Dependencies
+        working-directory: mobile/faar_pos_app
+        run: flutter pub get
+
+      - name: Verify Zero Lint Warnings (flutter analyze)
+        working-directory: mobile/faar_pos_app
+        run: flutter analyze
+
+      - name: Run Complete Test Suite (flutter test)
+        working-directory: mobile/faar_pos_app
+        run: flutter test --coverage
+
+      - name: Build Android Release APK
+        working-directory: mobile/faar_pos_app
+        run: flutter build apk --release --no-shrink
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: faar-pos-release-apk
+          path: mobile/faar_pos_app/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: warn
