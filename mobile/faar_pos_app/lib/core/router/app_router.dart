@@ -46,7 +46,7 @@ class RouterNotifier extends ChangeNotifier {
     final isLoginPage = state.matchedLocation == '/login';
 
     if (!isAuth && !isLoginPage) return '/login';
-    if (isAuth && isLoginPage) return '/pos/catalog';
+    if (isAuth && isLoginPage) return '/dashboard';
     return null;
   }
 }
